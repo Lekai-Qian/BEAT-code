@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.ipynb_checkpoints/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Runtime outputs
+*.log
+nohup.out
+outputs/
+logs/
+
+# Model checkpoints (large)
+checkpoints/
+*.pt
+*.safetensors
+
+# Generated samples
+samples/run_*/
+samples/continuation_*/
+samples/parallel_*/

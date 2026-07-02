@@ -1,0 +1,6 @@
+torch>=2.0
+transformers>=4.40
+accelerate>=1.0
+pretty_midi>=0.2.10
+numpy>=1.23,<2
+tqdm>=4.60
