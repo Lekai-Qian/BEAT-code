@@ -1,6 +1,6 @@
 # BEAT: Tokenizing and Generating Symbolic Music by Uniform Temporal Steps
 
-[Demo](https://lekai-qian.github.io/BEAT-ICML2026/) | [Paper] (https://arxiv.org/abs/2604.19532)
+[Demo](https://lekai-qian.github.io/BEAT-ICML2026/) | [Paper](https://arxiv.org/abs/2604.19532)
 
 Reference implementation of the ICML 2026 paper. **BEAT** (*Beat-wise Encoding
 for Autoregressive Transformers*) is a single LLaMA backbone over a unified
