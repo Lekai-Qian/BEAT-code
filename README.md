@@ -72,14 +72,25 @@ python -m scripts.generate_piano \
 
 ## Preparing your own data
 
-The MIDI/MusicXML datasets used in the paper will be released separately
-(uploaded after publication). To build the training data yourself, convert a
-folder of MIDI (or MusicXML) into the NPZ format the model trains on. The
-`data_prep/` modules document their NPZ formats in their module docstrings.
+The piano MIDI dataset used to prepare the piano training data is available on
+Google Drive:
+
+- [Download the piano MIDI dataset](https://drive.google.com/file/d/1tbh9fMWrsne9WDowlyw8W1ZqNaHLlX0Y/view?usp=sharing)
+
+It can also be downloaded from the command line with `gdown`:
 
 ```bash
-# piano: MIDI -> NPZ
-python -m data_prep.midi2pianonpz <midi_dir> --output_dir <out_dir>
+gdown 1tbh9fMWrsne9WDowlyw8W1ZqNaHLlX0Y
+```
+
+After downloading and extracting the dataset, convert its MIDI directory to
+the NPZ format used for training. You can also use your own folder of MIDI (or
+MusicXML) files. The `data_prep/` modules document their NPZ formats in their
+module docstrings.
+
+```bash
+# piano: downloaded MIDI dataset -> NPZ
+python -m data_prep.midi2pianonpz <piano_midi_dir> --output_dir data/piano_npz
 
 # multi-track: MusicXML -> NPZ
 python -m data_prep.xml2multitracknpz <xml_dir> --output_dir <out_dir>
