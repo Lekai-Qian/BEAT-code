@@ -102,11 +102,41 @@ accelerate launch --multi_gpu --num_processes 4 \
 
 ## Pretrained checkpoints
 
-**Pretrained checkpoints will be released separately** (uploaded after
-publication). Once available, place them under `checkpoints/{piano,multitrack}/`
-or pass an explicit `--checkpoint`. The piano model trains against the unified
-vocabulary and loads directly; the multi-track model is trained with
-`scripts/train_multitrack.py`.
+The pretrained piano and multi-track checkpoints are distributed together in a
+single archive:
+
+- [Download `BEAT-checkpoints.tar.gz` from Google Drive](https://drive.google.com/file/d/1SPEJgDx_yrfme3eFTsykQvFBVsi-mh-u/view?usp=sharing)
+- Archive size: approximately 1.05 GiB
+- SHA-256: `faf1e14724de086ad980c736ec01f3f2ae4d3dd86bab0046149fca0709b1629b`
+
+Download the archive manually from the link above, place it in the repository
+root, and extract it:
+
+```bash
+tar -xzf BEAT-checkpoints.tar.gz
+```
+
+Alternatively, download it from the command line with
+[`gdown`](https://github.com/wkentaro/gdown):
+
+```bash
+gdown 1SPEJgDx_yrfme3eFTsykQvFBVsi-mh-u -O BEAT-checkpoints.tar.gz
+tar -xzf BEAT-checkpoints.tar.gz
+```
+
+After extraction, the files should have this layout:
+
+```text
+checkpoints/
+├── piano/
+│   └── backbone.pt
+└── multitrack/
+    └── backbone.pt
+```
+
+The checkpoint files are intentionally excluded from Git. The empty directory
+structure is included in the repository so the downloaded files can be placed
+directly at the paths shown above.
 
 ## Vocabulary
 

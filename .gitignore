@@ -17,7 +17,9 @@ outputs/
 logs/
 
 # Model checkpoints (large)
-checkpoints/
+checkpoints/**
+!checkpoints/**/
+!checkpoints/**/.gitkeep
 *.pt
 *.safetensors
 
