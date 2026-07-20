@@ -12,12 +12,12 @@ Example:
       --num_samples 5
 """
 
-import os
 from datetime import datetime
 from typing import List
 
 import torch
 
+from beat.checkpoint import require_checkpoint_file
 from beat.model import PianoLLaMA
 from beat.vocab import VOCAB, BOS_TOKEN, EOS_TOKEN, PAD_TOKEN
 from config import BackboneModelConfig
@@ -30,22 +30,22 @@ def load_model(
     device: str = 'cuda',
 ) -> PianoLLaMA:
     """Build the backbone and load a checkpoint, expanding vocab if needed."""
+    checkpoint_path = require_checkpoint_file(checkpoint_path)
     model = PianoLLaMA(model_config)
-    if checkpoint_path and os.path.isfile(checkpoint_path):
-        sd = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
+    sd = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
 
-        ckpt_vocab = _checkpoint_vocab_size(sd)
-        if ckpt_vocab is not None and ckpt_vocab < model_config.vocab_size:
-            print(f"Resizing embeddings: ckpt {ckpt_vocab} → {model_config.vocab_size}; "
-                  f"new rows randomly initialized.")
-            _expand_state_dict(sd, ckpt_vocab, model_config.vocab_size, model_config.hidden_size)
+    ckpt_vocab = _checkpoint_vocab_size(sd)
+    if ckpt_vocab is not None and ckpt_vocab < model_config.vocab_size:
+        print(f"Resizing embeddings: ckpt {ckpt_vocab} → {model_config.vocab_size}; "
+              f"new rows randomly initialized.")
+        _expand_state_dict(sd, ckpt_vocab, model_config.vocab_size, model_config.hidden_size)
 
-        missing, unexpected = model.load_state_dict(sd, strict=False)
-        if missing:
-            print(f"  missing keys: {len(missing)} (first: {missing[:3]})")
-        if unexpected:
-            print(f"  unexpected keys: {len(unexpected)} (first: {unexpected[:3]})")
-        print(f"loaded: {checkpoint_path}")
+    missing, unexpected = model.load_state_dict(sd, strict=False)
+    if missing:
+        print(f"  missing keys: {len(missing)} (first: {missing[:3]})")
+    if unexpected:
+        print(f"  unexpected keys: {len(unexpected)} (first: {unexpected[:3]})")
+    print(f"loaded: {checkpoint_path}")
     model.to(device).eval()
     return model
 

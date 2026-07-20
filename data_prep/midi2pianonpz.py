@@ -28,9 +28,11 @@ Output format consumed by `piano.tokenizer.PianoTokenizer`:
         is_last         bool  True for a whole-piece NPZ
 
 Track → stream mapping (reverse-engineered from the released data):
-    acc  = the LAST instrument track (left hand / bass)
-    mel  = all other tracks merged   (right hand / melody; voices may be split
-           across several tracks in the MusicXML→MIDI export)
+    one track: mel = the only track; acc remains empty
+    multiple tracks:
+        acc = the LAST instrument track (left hand / bass)
+        mel = all other tracks merged (right hand / melody; voices may be split
+              across several tracks in the MusicXML→MIDI export)
 
 Measure grid:
     Bar boundaries come from `pretty_midi.get_downbeats()` (handles pickup bars
@@ -96,6 +98,15 @@ def _bpm_at(tempo_times: np.ndarray, tempi: np.ndarray, t: float) -> int:
     return int(round(bpm))
 
 
+def _piano_track_groups(num_instruments: int) -> Tuple[List[int], List[int]]:
+    """Return melody/accompaniment track indices without duplicating one-track MIDI."""
+    if num_instruments < 1:
+        raise ValueError("no instrument tracks")
+    if num_instruments == 1:
+        return [0], []
+    return list(range(num_instruments - 1)), [num_instruments - 1]
+
+
 # ----- main converter ----------------------------------------------------------
 
 class MIDIToPianoNPZ:
@@ -129,9 +140,7 @@ class MIDIToPianoNPZ:
         instruments = pm.instruments
         if not instruments:
             raise ValueError("no instrument tracks")
-        # acc = last track, mel = everything else (single-track → both = track 0)
-        mel_idx = list(range(len(instruments) - 1)) if len(instruments) > 1 else [0]
-        acc_idx = [len(instruments) - 1]
+        mel_idx, acc_idx = _piano_track_groups(len(instruments))
 
         def collect(idxs):
             out = []

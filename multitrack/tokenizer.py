@@ -119,7 +119,9 @@ class MultitrackTokenizer(BeatTokenizerBase):
         )
         is_continuation = bool(metadata.get('is_continuation', False))
         bpm = int(metadata.get('bpm', 120) or 120)
-        ts_idx = int(metadata.get('time_signature_idx', 4) or 4)  # default 4/4
+        # Index 0 is the valid 4/4 slot, so do not use ``or`` for fallback.
+        raw_ts_idx = metadata.get('time_signature_idx')
+        ts_idx = 0 if raw_ts_idx is None else int(raw_ts_idx)
         ts_str = _ts_from_idx(ts_idx)
 
         tokens: List[int] = []

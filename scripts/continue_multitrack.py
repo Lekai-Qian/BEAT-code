@@ -25,6 +25,7 @@ from pathlib import Path
 
 import torch
 
+from beat.checkpoint import require_checkpoint_file
 from beat.vocab import VOCAB, EOS_TOKEN, PAD_TOKEN
 from beat.model import PianoLLaMA
 from config import BackboneModelConfig, MultitrackTrainConfig
@@ -67,15 +68,15 @@ def midi_to_tokens(midi_path: str, tokenizer: MultitrackTokenizer):
 
 
 def load_model(checkpoint_path: str, cfg: BackboneModelConfig, device: str) -> PianoLLaMA:
+    checkpoint_path = require_checkpoint_file(checkpoint_path)
     model = PianoLLaMA(cfg)
-    if checkpoint_path and os.path.isfile(checkpoint_path):
-        sd = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
-        missing, unexpected = model.load_state_dict(sd, strict=False)
-        if missing:
-            print(f"  missing keys: {len(missing)} (first: {missing[:2]})")
-        if unexpected:
-            print(f"  unexpected keys: {len(unexpected)} (first: {unexpected[:2]})")
-        print(f"loaded: {checkpoint_path}")
+    sd = torch.load(checkpoint_path, map_location='cpu', weights_only=True)
+    missing, unexpected = model.load_state_dict(sd, strict=False)
+    if missing:
+        print(f"  missing keys: {len(missing)} (first: {missing[:2]})")
+    if unexpected:
+        print(f"  unexpected keys: {len(unexpected)} (first: {unexpected[:2]})")
+    print(f"loaded: {checkpoint_path}")
     model.to(device).eval()
     return model
 

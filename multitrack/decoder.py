@@ -170,18 +170,17 @@ class MultitrackDecoder(BeatTokenizerBase):
         parsed = self.parse_tokens(tokens)
         pm = pretty_midi.PrettyMIDI(initial_tempo=parsed.bpm)
 
-        # per-program note list
-        per_program: Dict[int, List["MultitrackDecoder._Note"]] = {}
-        beat_tick = 0
-        for beat in parsed.beats:
-            for program, items in beat.tracks.items():
-                notes = per_program.setdefault(program, [])
-                for pitch_idx, pat_id, vel_id in items:
-                    vel = vel_id if vel_id > 0 else default_velocity
-                    notes.extend(self._pat_to_notes(
-                        pitch_idx, pat_id, vel, beat_tick, ticks_per_beat,
-                    ))
-            beat_tick += ticks_per_beat
+        # Rebuild full per-program piano-rolls before scanning notes. Sustain at
+        # the beginning of a beat must extend the preceding beat's onset.
+        piano_rolls = self._assemble_piano_rolls(
+            parsed,
+            ticks_per_beat=ticks_per_beat,
+            default_velocity=default_velocity,
+        )
+        per_program = {
+            program: self._piano_roll_to_notes(roll)
+            for program, roll in piano_rolls.items()
+        }
 
         tick_seconds = (60.0 / parsed.bpm) / ticks_per_beat
 
@@ -206,38 +205,86 @@ class MultitrackDecoder(BeatTokenizerBase):
         pm.write(output_path)
         return output_path
 
-    def _pat_to_notes(
+    def _assemble_piano_rolls(
         self,
-        pitch_idx: int,
-        pat_id: int,
-        velocity: int,
-        beat_tick: int,
+        parsed: _Parsed,
         ticks_per_beat: int,
-    ) -> List["MultitrackDecoder._Note"]:
-        """One (pitch, PAT) triple → list of (start, end, pitch, vel) note rows.
+        default_velocity: int,
+    ) -> Dict[int, np.ndarray]:
+        """Assemble full `(sustain, onset, velocity)` rolls keyed by program."""
+        if ticks_per_beat < 1:
+            raise ValueError(f"ticks_per_beat must be positive, got {ticks_per_beat}")
 
-        PAT decodes to a length-τ tri-state vector. Successive sustains chain
-        onto the previous onset; silence ends the running note.
-        """
-        states = self.id_to_pattern(pat_id)
+        total_ticks = len(parsed.beats) * ticks_per_beat
+        programs = {
+            program
+            for beat in parsed.beats
+            for program in beat.tracks
+        }
+        rolls = {
+            program: np.zeros((3, self.vocab.num_pitches, total_ticks), dtype=np.uint8)
+            for program in programs
+        }
+
+        pattern_steps = self.vocab.pattern_steps
+        for beat_idx, beat in enumerate(parsed.beats):
+            beat_tick = beat_idx * ticks_per_beat
+            for program, items in beat.tracks.items():
+                roll = rolls[program]
+                for pitch_idx, pat_id, vel_id in items:
+                    if not 0 <= pitch_idx < self.vocab.num_pitches:
+                        continue
+                    velocity = vel_id if vel_id > 0 else default_velocity
+                    states = self.id_to_pattern(pat_id)
+                    for step_idx, state in enumerate(states):
+                        start = beat_tick + step_idx * ticks_per_beat // pattern_steps
+                        end = beat_tick + (step_idx + 1) * ticks_per_beat // pattern_steps
+                        if end <= start or state == self.vocab.state_silence:
+                            continue
+                        roll[0, pitch_idx, start:end] = 1
+                        roll[2, pitch_idx, start:end] = int(np.clip(velocity, 1, 127))
+                        if state == self.vocab.state_onset:
+                            roll[1, pitch_idx, start] = 1
+        return rolls
+
+    def _piano_roll_to_notes(self, roll: np.ndarray) -> List["MultitrackDecoder._Note"]:
+        """Scan one full roll so active notes survive across beat boundaries."""
+        sustain = roll[0] > 0
+        onset = roll[1] > 0
+        velocity = roll[2]
         rows: List["MultitrackDecoder._Note"] = []
-        step_ticks = ticks_per_beat / len(states)
-        cur_onset: Optional[int] = None
-        for j, s in enumerate(states):
-            tick = beat_tick + int(round(j * step_ticks))
-            if s == self.vocab.state_onset:
-                if cur_onset is not None:
-                    rows.append((cur_onset, tick, pitch_idx, velocity))
-                cur_onset = tick
-            elif s == self.vocab.state_sustain:
-                if cur_onset is None:
-                    cur_onset = tick
-            else:  # silence
-                if cur_onset is not None:
-                    rows.append((cur_onset, tick, pitch_idx, velocity))
-                    cur_onset = None
-        if cur_onset is not None:
-            rows.append((cur_onset, beat_tick + ticks_per_beat, pitch_idx, velocity))
+
+        for pitch_idx in range(sustain.shape[0]):
+            active_start: Optional[int] = None
+            active_velocities: List[int] = []
+
+            def finish(end_tick: int) -> None:
+                nonlocal active_start, active_velocities
+                if active_start is not None and end_tick > active_start:
+                    vel = (
+                        int(round(sum(active_velocities) / len(active_velocities)))
+                        if active_velocities else self.vocab.default_vel
+                    )
+                    rows.append((active_start, end_tick, pitch_idx, vel))
+                active_start = None
+                active_velocities = []
+
+            for tick in range(sustain.shape[1]):
+                if onset[pitch_idx, tick]:
+                    finish(tick)
+                    active_start = tick
+                elif not sustain[pitch_idx, tick]:
+                    finish(tick)
+                    continue
+                elif active_start is None:
+                    # Preserve continuation prompts that begin with sustain.
+                    active_start = tick
+
+                if sustain[pitch_idx, tick] and velocity[pitch_idx, tick] > 0:
+                    active_velocities.append(int(velocity[pitch_idx, tick]))
+
+            finish(sustain.shape[1])
+
         return rows
 
 
