@@ -131,6 +131,13 @@ class MultitrackTokenizer(BeatTokenizerBase):
             tokens.append(self.vocab.tempo_to_token(bpm))
 
         beat_length = self.vocab.pattern_steps  # τ = 4 time steps per beat
+        # Canonicalize track order as required by the paper's multi-track
+        # encoding algorithm.  The original index is a stable tie-breaker for
+        # multiple tracks that share the same MIDI program.
+        ordered_tracks = sorted(
+            enumerate(instruments),
+            key=lambda item: (int(item[1]), item[0]),
+        )
 
         for measure_idx, mk in enumerate(measure_keys):
             m = data[mk]  # (2*num_tracks, 88, T)
@@ -147,7 +154,7 @@ class MultitrackTokenizer(BeatTokenizerBase):
                 beat_view = m[:, :, t0:t1]  # (2*N, 88, τ)
 
                 beat_token_block: List[int] = []
-                for track_idx, program in enumerate(instruments):
+                for track_idx, program in ordered_tracks:
                     track_seg = beat_view[track_idx * 2: track_idx * 2 + 2]  # (2, 88, τ)
                     beat_token_block.extend(self._encode_beat_track(track_seg, int(program)))
 

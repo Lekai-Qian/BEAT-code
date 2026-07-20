@@ -56,6 +56,42 @@ class MultitrackTimeSignatureTests(unittest.TestCase):
         self.assertEqual(header[1], VOCAB.ts_to_token("UNK"))
 
 
+class MultitrackInstrumentOrderTests(unittest.TestCase):
+    @staticmethod
+    def _encode(instruments, pitches):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = os.path.join(tmp_dir, "track-order.npz")
+            measure = np.zeros((2 * len(instruments), 88, 4), dtype=np.uint8)
+            for track_idx, pitch in enumerate(pitches):
+                measure[2 * track_idx, pitch, :] = 1
+                measure[2 * track_idx + 1, pitch, 0] = 1
+            metadata = {
+                "num_tracks": len(instruments),
+                "instruments": instruments,
+                "bpm": 120,
+                "time_signature_idx": 0,
+            }
+            np.savez_compressed(path, measure_0=measure, metadata=metadata)
+            return MultitrackTokenizer().encode_file(path)
+
+    def test_track_permutation_has_canonical_encoding(self):
+        first = self._encode(instruments=[40, 0], pitches=[55, 39])
+        second = self._encode(instruments=[0, 40], pitches=[39, 55])
+        self.assertEqual(first, second)
+
+    def test_tracks_are_emitted_in_program_order(self):
+        tokens = self._encode(instruments=[40, 0, 128], pitches=[55, 39, 15])
+        instrument_tokens = [
+            token for token in tokens
+            if VOCAB.is_ins(token) or token == VOCAB.ins_drum_token
+        ]
+        self.assertEqual(instrument_tokens, [
+            VOCAB.ins_offset,
+            VOCAB.ins_offset + 40,
+            VOCAB.ins_drum_token,
+        ])
+
+
 class PianoTrackMappingTests(unittest.TestCase):
     def test_single_track_is_not_duplicated(self):
         melody, accompaniment = _piano_track_groups(1)
