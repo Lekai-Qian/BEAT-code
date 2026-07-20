@@ -76,11 +76,14 @@ The piano MIDI dataset used to prepare the piano training data is available on
 Google Drive:
 
 - [Download the piano MIDI dataset](https://drive.google.com/file/d/1tbh9fMWrsne9WDowlyw8W1ZqNaHLlX0Y/view?usp=sharing)
+- File: `piano_midi.tar.gz` (171,785 MIDI files; approximately 207 MiB)
+- SHA-256: `d265d0109871b04eb4cdd2d31cf1c3a92ce9c6badc6cc3686dd01e8c1c567df3`
 
 It can also be downloaded from the command line with `gdown`:
 
 ```bash
-gdown 1tbh9fMWrsne9WDowlyw8W1ZqNaHLlX0Y
+gdown 1tbh9fMWrsne9WDowlyw8W1ZqNaHLlX0Y -O piano_midi.tar.gz
+tar -xzf piano_midi.tar.gz
 ```
 
 After downloading and extracting the dataset, convert its MIDI directory to
@@ -90,7 +93,7 @@ module docstrings.
 
 ```bash
 # piano: downloaded MIDI dataset -> NPZ
-python -m data_prep.midi2pianonpz <piano_midi_dir> --output_dir data/piano_npz
+python -m data_prep.midi2pianonpz allxml_midi --output_dir data/piano_npz
 
 # multi-track: MusicXML -> NPZ
 python -m data_prep.xml2multitracknpz <xml_dir> --output_dir <out_dir>
